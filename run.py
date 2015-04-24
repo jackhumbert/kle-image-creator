@@ -1,5 +1,4 @@
 # encoding=utf8
-from bson import ObjectId
 from datetime import datetime
 from flask import abort, Flask, jsonify, redirect, request, url_for, Response, session, make_response, send_file
 # from flask.ext import restful
