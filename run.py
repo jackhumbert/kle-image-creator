@@ -22,6 +22,7 @@ from PIL import Image, ImageFont, ImageDraw
 import requests
 from StringIO import StringIO
 import copy
+import webcolors
 
 app = Flask(__name__)
 app.config.update(dict(
@@ -48,9 +49,9 @@ class Key(object):
     align = 4
     fontheight = 3
     fontheight2 = 3 
-    rotation_angle = 0
-    rotation_x = 0
-    rotation_y = 0
+    rotation_angle = 0.0
+    rotation_x = 0.0
+    rotation_y = 0.0
     profile = ""
     nub = False
     ghost = False
@@ -61,54 +62,53 @@ def deserialise(rows):
     current = Key()
     meta = { "backcolor": "#eeeeee" }
     keys = []
-    cluster = { "x": 0, "y": 0 }
+    cluster = { "x": 0.0, "y": 0.0 }
     for row in rows:
         if isinstance(row, list):
             for key in row:
                 if isinstance(key, basestring):
                     newKey = copy.copy(current);
-                    newKey.width2 = current.width if newKey.width2 == 0 else current.width2
-                    newKey.height2 = current.height if newKey.height2 == 0 else current.height2
+                    newKey.width2 = current.width if newKey.width2 == 0.0 else current.width2
+                    newKey.height2 = current.height if newKey.height2 == 0.0 else current.height2
                     newKey.labels = key.split('\n')
                     keys.append(newKey)
 
                     # Set up for the next key
                     current.x += current.width
-                    current.width = current.height = 1
-                    current.x2 = current.y2 = current.width2 = current.height2 = 0
+                    current.width = current.height = 1.0
+                    current.x2 = current.y2 = current.width2 = current.height2 = 0.0
                     current.nub = current.stepped = False
                 else:
-                    app.logger.info(key)
-                    if hasattr(key, 'r'):
-                        current.rotation_angle = key.r
-                    if hasattr(key, 'rx'):
-                        current.rotation_x = cluster.x = key.rx
-                    if hasattr(key, 'ry'):
-                        current.rotation_y = cluster.y = key.ry
-                    if hasattr(key, 'a'):
-                        current.align = key.a
+                    if 'r' in key:
+                        current.rotation_angle = key['r']
+                    if 'rx' in key:
+                        current.rotation_x = cluster['x'] = key['rx']
+                    if 'ry' in key:
+                        current.rotation_y = cluster['y'] = key['ry']
+                    if 'a' in key:
+                        current.align = key['a']
                     if hasattr(key, 'f'):
                         current.fontheight = current.fontheight2 = key.f
                     if hasattr(key, 'f2'):
                         current.fontheight2 = key.f2
                     if hasattr(key, 'p'):
                         current.profile = key.p
-                    if hasattr(key, 'c'):
-                        current.color = key.c
-                    if hasattr(key, 't'):
-                        current.text = key.t
+                    if 'c' in key:
+                        current.color = key['c']
+                    if 't' in key:
+                        current.text = key['t']
                     if 'x' in key:
                         current.x += float(key['x'])
-                    if hasattr(key, 'y'):
-                        current.y += float(key.y)
+                    if 'y' in key:
+                        current.y += float(key['y'])
                     if 'w' in key:
                         current.width = float(key['w'])
                     if 'h' in key:
                         current.height = float(key['h'])
-                    if hasattr(key, 'x2'):
-                        current.x2 = key.x2
-                    if hasattr(key, 'y2'):
-                        current.y2 = key.y2
+                    if 'x2' in key:
+                        current.x2 = float(key['x2'])
+                    if 'y2' in key:
+                        current.y2 = float(key['y2'])
                     if hasattr(key, 'w2'):
                         current.width2 = key.w2
                     if hasattr(key, 'h2'):
@@ -121,25 +121,36 @@ def deserialise(rows):
                         current.ghost = key.g
 
             # End of the row
-            current.y += 1;
+            current.y += 1.0;
         current.x = current.rotation_x
     return { "meta":meta, "keys":keys }
 
 def render_keys(kb):
     keys = kb['keys']
     meta = kb['meta']
-    last = keys[len(keys)-1]
+    max_x = 0
+    max_y = 0
+    for key in keys:
+        max_x = max(key.x*56+key.width*56, max_x)
+        max_y = max(key.y*56+key.height*56, max_y)
     spacing = 10
-    img = Image.new("RGB", (int(last.x*56+last.width*56 - 3 + 2 * spacing), int(last.y*56+last.height*56 - 3 + 2 * spacing)), meta['backcolor'])
+    img = Image.new("RGB", (int(max_x - 3 + 2 * spacing), int(max_y - 3 + 2 * spacing)), meta['backcolor'])
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype("fonts/HelveticaNeueLight.ttf", 17)
+    font_scale = 8
+    font = ImageFont.truetype("fonts/Roboto-Light.ttf", 14*font_scale)
+    font_layer = Image.new("RGBA", (img.size[0]*font_scale, img.size[1]*font_scale))
+    draw_font = ImageDraw.Draw(font_layer)
     for key in keys:
         x = key.x*56 - 1.5 + spacing
         y = key.y*56 - 1.5 + spacing
         w = key.width*56 - 3 
         h = key.height*56 - 3
-        draw.rectangle([(x, y), (x+w, y+h)], fill="white", outline="#cccccc")
-        draw.text((x + 1.5, y + 1.5), key.labels[0], (0,0,0), font=font)
+        light_color = webcolors.rgb_to_hex([color + 40 for color in webcolors.hex_to_rgb(key.color)])
+        lightdark_color = webcolors.rgb_to_hex([color + 25 for color in webcolors.hex_to_rgb(key.color)])
+        dark_color = webcolors.rgb_to_hex([color - 25 for color in webcolors.hex_to_rgb(key.color)])
+        draw.rectangle([(x, y), (x+w, y+h)], fill=key.color, outline=dark_color)
+        draw.rectangle([(x + 5, y + 5), (x+w-6, y+h-6)], fill=light_color, outline=dark_color)
+        draw_font.text(((x + 1.5 + 6)*font_scale, (y + 1.5 + 6)*font_scale), key.labels[0], key.text, font=font)
         # # Some predefined sizes for our caps
         # sizes = { "cap": 54, "padding": 2, "margin": 6, "spacing": 1 }
         # def capsize(size):
@@ -278,13 +289,17 @@ def render_keys(kb):
         #         key.crosshairs_y = sizes.capsize(key.rotation_y) + sizes.margin;
         #         key.crosshairs = "block";
         #     }
+
+
+    font_layer.thumbnail(img.size, Image.ANTIALIAS)
+    img.paste(font_layer, (0, 0), font_layer)
     return img
 
 def serve_pil_image(pil_img):
     img_io = StringIO()
-    pil_img.save(img_io, 'JPEG', quality=80)
+    pil_img.save(img_io, 'PNG')
     img_io.seek(0)
-    return send_file(img_io, mimetype='image/jpeg')
+    return send_file(img_io, mimetype='image/png')
 
 @app.route('/')
 def index():
