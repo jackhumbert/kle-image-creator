@@ -9,8 +9,6 @@ import os, re
 import random
 import json
 from flask_cors import cross_origin
-from bson.son import SON
-from bson.code import Code
 import string
 # import pytz
 from datetime import datetime, timedelta
