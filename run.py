@@ -21,7 +21,6 @@ import math
 from PIL import Image, ImageFont, ImageDraw
 import requests
 from StringIO import StringIO
-from shortid import ShortId
 import copy
 
 app = Flask(__name__)
