@@ -138,7 +138,7 @@ def render_keys(kb):
     spacing = 10
     img = Image.new("RGB", (int(max_x - 3 + 2 * spacing), int(max_y - 3 + 2 * spacing)), meta['backcolor'])
     draw = ImageDraw.Draw(img)
-    font_scale = 8
+    font_scale = 4
     font_layer = Image.new("RGBA", (img.size[0]*font_scale, img.size[1]*font_scale))
     draw_font = ImageDraw.Draw(font_layer)
     for key in keys:
@@ -247,6 +247,7 @@ HI
 ''', 200
 
 @app.route('/<id>', methods = ['GET'])
+@app.route('/<id>.png', methods = ['GET'])
 def get_image(id):
     out = ""
     rows = requests.get('http://www.keyboard-layout-editor.com/layouts/%s' % id).json()
